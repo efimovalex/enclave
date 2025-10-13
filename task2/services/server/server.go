@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"enclave-task2/pkg/common"
+	"enclave-task2/pkg/keys"
 	"log/slog"
 	"net"
 	"net/http"
@@ -10,20 +11,22 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/mailgun/groupcache/v2"
 	"golang.org/x/sync/errgroup"
 )
 
 type Storage interface {
-	Put(key string, value []byte) error
-	Get(key string) ([]byte, error)
-	Delete(key string) error
-	Has(key string) bool
+	Put(ctx context.Context, key *keys.Key) error
+	Get(ctx context.Context, key string) (*keys.Key, error)
+	Delete(ctx context.Context, key string) error
 }
 
 type Server struct {
-	*http.Server
-
+	api *http.Server
 	mux *http.ServeMux
+	gc  *http.Server
+
+	storage Storage
 
 	logger *slog.Logger
 }
@@ -31,10 +34,14 @@ type Server struct {
 // NewServer creates a new Server instance.
 func New(storage Storage) *Server {
 	return &Server{
-		Server: &http.Server{
+		api: &http.Server{
 			Addr: ":8080",
 		},
 		mux: http.NewServeMux(),
+		gc: &http.Server{
+			Addr: ":8081",
+		},
+		storage: storage,
 	}
 }
 
@@ -51,24 +58,44 @@ func (s *Server) Start(ctx context.Context) error {
 	s.mux.Handle("POST /transit/encrypt/{name}", http.HandlerFunc(s.Encrypt))
 	s.mux.Handle("POST /transit/decrypt/{name}", http.HandlerFunc(s.Decrypt))
 
-	s.Server.Handler = initMiddlewares(ctx, s.mux)
+	s.api.Handler = initMiddlewares(ctx, s.mux)
 
 	errWg, errCtx := errgroup.WithContext(ctx)
 
 	errWg.Go(func() error {
+		// Start api server
 		lc := net.ListenConfig{}
-		l, err := lc.Listen(ctx, "tcp", s.Addr)
+		l, err := lc.Listen(ctx, "tcp", s.api.Addr)
 		if err != nil {
 			s.logger.Error("failed to start listener", "error", err.Error())
 			return err
 		}
-		s.logger.Info("server started", "address", s.Addr)
+		s.logger.Info("server started", "address", s.api.Addr)
 		s.logger.Info("Use the following token to authenticate with server", "token", token)
-		if s.TLSConfig != nil {
-			return s.ServeTLS(l, "", "")
+		if s.api.TLSConfig != nil {
+			return s.api.ServeTLS(l, "", "")
 		}
 
-		return s.Serve(l)
+		return s.api.Serve(l)
+	})
+
+	errWg.Go(func() error {
+		// Start groupcache server
+		pool := groupcache.NewHTTPPoolOpts("http://127.0.0.1:8081", &groupcache.HTTPPoolOptions{})
+		s.gc.Handler = pool
+
+		lc := net.ListenConfig{}
+		l, err := lc.Listen(ctx, "tcp", s.gc.Addr)
+		if err != nil {
+			s.logger.Error("failed to start listener", "error", err.Error())
+			return err
+		}
+		s.logger.Info("groupcache server started", "address", s.gc.Addr)
+		if s.gc.TLSConfig != nil {
+			return s.gc.ServeTLS(l, "", "")
+		}
+
+		return s.gc.Serve(l)
 	})
 
 	errWg.Go(func() error {
@@ -76,7 +103,10 @@ func (s *Server) Start(ctx context.Context) error {
 		timeoutCtx, cancel := context.WithDeadline(context.Background(), time.Now().Add(5*time.Second))
 		defer cancel()
 
-		return s.Shutdown(timeoutCtx)
+		s.api.Shutdown(timeoutCtx)
+		s.gc.Shutdown(timeoutCtx)
+
+		return nil
 	})
 	err := errWg.Wait()
 

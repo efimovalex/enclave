@@ -73,6 +73,7 @@ func (c *Cache) Fetch(ctx context.Context, url string, ttlOverride ...time.Durat
 		c.mu.Unlock()
 	} else {
 		c.mu.RUnlock()
+		// Cache miss
 		c.misses.Add(1)
 	}
 

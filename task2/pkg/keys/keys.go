@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"fmt"
 	"os"
-	"path"
 	"time"
 
 	"github.com/cloudflare/circl/pke/kyber/kyber1024"
@@ -13,19 +12,22 @@ import (
 
 const (
 	// KeyTTL defines how long a key is valid.
-	KeyTTL = 24 * time.Hour
+	DefaultKeyTTL = 25 * time.Minute
 
-	separatorByte = byte(0xBC)
+	separatorByte = byte(0xFF)
 )
 
 type Key struct {
-	name       string
+	Name       string
 	seed       []byte
 	publicKey  *kyber1024.PublicKey
 	privateKey *kyber1024.PrivateKey
+
+	CreatedAt time.Time
+	TTL       time.Duration
 }
 
-func New(name string) (*Key, error) {
+func New(name string, ttl time.Duration) (*Key, error) {
 	publicKey, privateKey, err := kyber1024.GenerateKey(nil)
 	if err != nil {
 		return nil, err
@@ -38,10 +40,12 @@ func New(name string) (*Key, error) {
 	}
 
 	return &Key{
-		name:       name,
+		Name:       name,
 		seed:       seed,
 		publicKey:  publicKey,
 		privateKey: privateKey,
+		CreatedAt:  time.Now(),
+		TTL:        ttl,
 	}, nil
 }
 
@@ -90,7 +94,7 @@ func (k *Key) Decrypt(ciphertext []byte) []byte {
 		plaintext = append(plaintext, pt...)
 	}
 
-	return bytes.TrimRight(plaintext, "\x00") // remove padding
+	return bytes.TrimRight(plaintext, "\x00") // remove padding zeros
 }
 
 func (k *Key) Pack() []byte {
@@ -102,7 +106,12 @@ func (k *Key) Pack() []byte {
 
 	// pack name, seed, public and private keys into a single byte slice
 	packed := bytes.NewBuffer([]byte{})
-	packed.WriteString(k.name)
+
+	packed.WriteString(k.Name)
+	packed.WriteByte(separatorByte)
+	packed.Write([]byte(k.CreatedAt.Format(time.RFC3339)))
+	packed.WriteByte(separatorByte)
+	packed.Write([]byte(k.TTL.String()))
 	packed.WriteByte(separatorByte)
 	packed.Write(k.seed)
 	packed.Write(pubKeyBytes)
@@ -112,12 +121,24 @@ func (k *Key) Pack() []byte {
 }
 
 func Unpack(data []byte) (*Key, error) {
-	parts := bytes.SplitN(data, []byte{separatorByte}, 2)
-	if len(parts) != 2 {
+	parts := bytes.SplitN(data, []byte{separatorByte}, 4)
+	if len(parts) != 4 {
 		return nil, fmt.Errorf("invalid packed key")
 	}
+
 	name := string(parts[0])
-	rest := parts[1]
+
+	createdAt, err := time.Parse(time.RFC3339, string(parts[1]))
+	if err != nil {
+		return nil, fmt.Errorf("invalid created at time: %w", err)
+	}
+
+	ttl, err := time.ParseDuration(string(parts[2]))
+	if err != nil {
+		return nil, fmt.Errorf("invalid ttl: %w", err)
+	}
+
+	rest := parts[3]
 
 	if len(rest) < kyber1024.EncryptionSeedSize+kyber1024.PublicKeySize+kyber1024.PrivateKeySize {
 		return nil, fmt.Errorf("invalid packed key size")
@@ -134,41 +155,11 @@ func Unpack(data []byte) (*Key, error) {
 	privKey.Unpack(privKeyBytes)
 
 	return &Key{
-		name:       name,
+		Name:       name,
 		seed:       seed,
 		publicKey:  &pubKey,
 		privateKey: &privKey,
+		CreatedAt:  createdAt,
+		TTL:        ttl,
 	}, nil
-}
-
-func (k *Key) ToFile(filepath string) error {
-	// ensure directory exists
-	_, err := os.Stat(filepath)
-	if os.IsNotExist(err) {
-		err = os.MkdirAll(filepath, 0700)
-		if err != nil {
-			return err
-		}
-	}
-
-	// write packed key to file
-	err = os.WriteFile(path.Join(filepath, k.name+".key"), k.Pack(), 0600)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func KeyFromFiles(name, filepath string) (*Key, error) {
-	keyBytes, err := os.ReadFile(path.Join(filepath, name+".key"))
-	if err != nil {
-		return nil, err
-	}
-	key, err := Unpack(keyBytes)
-	if err != nil {
-		return nil, err
-	}
-
-	return key, nil
 }

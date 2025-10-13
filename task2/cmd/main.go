@@ -6,12 +6,8 @@ import (
 	"os"
 
 	"enclave-task2/pkg/common"
+	"enclave-task2/pkg/storage"
 	"enclave-task2/services/server"
-)
-
-const (
-	storageDir = "./.storage"
-	keyName    = "storage-encryption-key"
 )
 
 func main() {
@@ -31,8 +27,10 @@ func run(ctx context.Context) error {
 
 	logger.Info("Application started")
 
+	storage := storage.NewInMemoryCache()
+
 	// start services
-	err := server.New().Start(ctx)
+	err := server.New(storage).Start(ctx)
 	if err != nil {
 		return err
 	}
