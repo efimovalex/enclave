@@ -23,7 +23,7 @@ func main() {
 
 Run tests:
 ```
-cd task1 && go test -v ./...
+$ cd task1 && go test -v ./...
 ```
 
 
@@ -33,6 +33,7 @@ cd task1 && go test -v ./...
 
 ### Build and run the server
 ```
+$ cd task2
 $ make build
 $ ./build/kyberAPI
 ```
