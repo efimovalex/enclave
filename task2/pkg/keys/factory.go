@@ -2,6 +2,10 @@ package keys
 
 import (
 	"bytes"
+	"context"
+	"enclave-task2/pkg/common"
+	"enclave-task2/pkg/keys/kyber"
+	"enclave-task2/pkg/keys/rsa"
 	"fmt"
 	"time"
 )
@@ -25,29 +29,37 @@ type Key interface {
 const (
 	// KeyTTL defines how long a key is valid.
 	DefaultKeyTTL = 25 * time.Minute
-
-	separatorByte = byte(0xFF)
 )
 
-func New(keyType, size, name string, ttl time.Duration) (Key, error) {
+func New(ctx context.Context, keyType, size, name string, ttl time.Duration) (Key, error) {
 	switch keyType {
-	case KyberKeyType:
-		return NewKyberKey(name, size, ttl)
-		// add other key types here
+	case kyber.KeyType:
+		return kyber.NewKyberKey(ctx, name, size, ttl)
+	case rsa.KeyType:
+		return rsa.NewRsaKey(ctx, name, size, ttl)
+
 	default:
 		return nil, fmt.Errorf("unknown key type: %s", keyType)
 	}
 }
 
 func Unpack(data []byte) (Key, error) {
-	parts := bytes.SplitN(data, []byte{separatorByte}, 2)
+	parts := bytes.SplitN(data, []byte{common.SeparatorByte}, 2)
 	if len(parts) != 2 {
 		return nil, fmt.Errorf("invalid packed key")
 	}
 
 	switch string(parts[0]) {
 	case "kyber":
-		var key = KyberKey{size: string(parts[1])}
+		var key kyber.KyberKey
+		key.SetSize(string(parts[1]))
+		if err := key.Unpack(data); err != nil {
+			return nil, err
+		}
+		return &key, nil
+	case rsa.KeyType:
+		var key rsa.RsaKey
+		key.SetSize(string(parts[1]))
 		if err := key.Unpack(data); err != nil {
 			return nil, err
 		}

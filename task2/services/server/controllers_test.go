@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"enclave-task2/pkg/keys"
+	"enclave-task2/pkg/keys/kyber"
 	"enclave-task2/pkg/storage"
 	"io"
 	"log/slog"
@@ -120,7 +121,7 @@ func TestRevokeKyberKey(t *testing.T) {
 	server := New(cache)
 	server.logger = slog.New(slog.NewTextHandler(t.Output(), &slog.HandlerOptions{Level: slog.LevelDebug}))
 
-	key, err := keys.New(keys.KyberKeyType, keys.Size1024, "test-key", keys.DefaultKeyTTL)
+	key, err := keys.New(ctx, kyber.KeyType, kyber.Size1024, "test-key", keys.DefaultKeyTTL)
 	assert.NoError(t, err)
 	// Create key
 	err = cache.Put(ctx, key)
@@ -178,7 +179,7 @@ func TestEncrypt(t *testing.T) {
 	server := New(cache)
 	server.logger = slog.New(slog.NewTextHandler(t.Output(), &slog.HandlerOptions{Level: slog.LevelDebug}))
 
-	key, err := keys.New(keys.KyberKeyType, keys.Size1024, "test-key", keys.DefaultKeyTTL)
+	key, err := keys.New(ctx, kyber.KeyType, kyber.Size1024, "test-key", keys.DefaultKeyTTL)
 	assert.NoError(t, err)
 	// Create key
 	err = cache.Put(ctx, key)
@@ -246,7 +247,7 @@ func TestDecrypt(t *testing.T) {
 	server := New(cache)
 	server.logger = slog.New(slog.NewTextHandler(t.Output(), &slog.HandlerOptions{Level: slog.LevelDebug}))
 
-	key, err := keys.New(keys.KyberKeyType, keys.Size1024, "test-key", keys.DefaultKeyTTL)
+	key, err := keys.New(ctx, kyber.KeyType, kyber.Size1024, "test-key", keys.DefaultKeyTTL)
 	assert.NoError(t, err)
 	// Create key
 	err = cache.Put(ctx, key)
@@ -315,7 +316,7 @@ func TestEncryptDecryptLargeData(t *testing.T) {
 	server := New(cache)
 	server.logger = slog.New(slog.NewTextHandler(t.Output(), &slog.HandlerOptions{Level: slog.LevelDebug}))
 
-	key, err := keys.New(keys.KyberKeyType, keys.Size1024, "test-key", keys.DefaultKeyTTL)
+	key, err := keys.New(ctx, kyber.KeyType, kyber.Size1024, "test-key", keys.DefaultKeyTTL)
 	assert.NoError(t, err)
 	// Create key
 	err = cache.Put(ctx, key)

@@ -2,6 +2,7 @@ package server
 
 import (
 	"enclave-task2/pkg/keys"
+	"enclave-task2/pkg/keys/kyber"
 	"enclave-task2/pkg/storage"
 	"io"
 	"net/http"
@@ -47,15 +48,15 @@ func (s *Server) CreateKyberKey(rw http.ResponseWriter, req *http.Request) {
 
 	keyType := req.Header.Get("X-Key-Type")
 	if keyType == "" {
-		keyType = "kyber"
+		keyType = kyber.KeyType
 	}
 
 	keySize := req.Header.Get("X-Key-Size")
 	if keySize == "" {
-		keySize = "1024"
+		keySize = kyber.Size1024
 	}
 
-	key, err = keys.New(keyType, keySize, keyName, ttl)
+	key, err = keys.New(ctx, keyType, keySize, keyName, ttl)
 	if err != nil {
 		s.logger.Error("failed to create key", "error", err)
 		http.Error(rw, "failed to create key", http.StatusInternalServerError)

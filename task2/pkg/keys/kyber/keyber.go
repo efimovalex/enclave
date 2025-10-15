@@ -1,8 +1,10 @@
-package keys
+package kyber
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
+	"enclave-task2/pkg/common"
 	"fmt"
 	"os"
 	"time"
@@ -13,12 +15,11 @@ import (
 )
 
 const (
-	// Kyber1024KeyType is the type identifier for Kyber1024 keys.
-	KyberKeyType = "kyber"
-	Size1024     = "1024"
-	Size512      = "512"
-	Size768      = "768"
-	dataParts    = 6 // number of parts in packed key data
+	KeyType   = "kyber"
+	Size1024  = "1024"
+	Size512   = "512"
+	Size768   = "768"
+	dataParts = 6 // number of parts in packed key data
 )
 
 type kyberPublicKey interface {
@@ -45,7 +46,7 @@ type KyberKey struct {
 	TTL       time.Duration
 }
 
-func NewKyberKey(name, size string, ttl time.Duration) (Key, error) {
+func NewKyberKey(ctx context.Context, name, size string, ttl time.Duration) (*KyberKey, error) {
 	var publicKey kyberPublicKey
 	var privateKey kyberPrivateKey
 	var err error
@@ -104,6 +105,9 @@ func (k *KyberKey) GetCreatedAt() time.Time {
 func (k *KyberKey) GetTTL() time.Duration {
 	return k.TTL
 }
+func (k *KyberKey) SetTTL(ttl time.Duration) {
+	k.TTL = ttl
+}
 
 func (k *KyberKey) GetType() string {
 	return k.keyType
@@ -112,9 +116,8 @@ func (k *KyberKey) GetType() string {
 func (k *KyberKey) GetSize() string {
 	return k.size
 }
-
-func (k *KyberKey) SetTTL(ttl time.Duration) {
-	k.TTL = ttl
+func (k *KyberKey) SetSize(size string) {
+	k.size = size
 }
 
 func (k *KyberKey) Encrypt(plaintext []byte) []byte {
@@ -176,15 +179,15 @@ func (k *KyberKey) Pack() []byte {
 	packed := bytes.NewBuffer([]byte{})
 
 	packed.WriteString(k.keyType)
-	packed.WriteByte(separatorByte)
+	packed.WriteByte(common.SeparatorByte)
 	packed.WriteString(k.size)
-	packed.WriteByte(separatorByte)
+	packed.WriteByte(common.SeparatorByte)
 	packed.WriteString(k.Name)
-	packed.WriteByte(separatorByte)
+	packed.WriteByte(common.SeparatorByte)
 	packed.Write([]byte(k.CreatedAt.Format(time.RFC3339)))
-	packed.WriteByte(separatorByte)
+	packed.WriteByte(common.SeparatorByte)
 	packed.Write([]byte(k.TTL.String()))
-	packed.WriteByte(separatorByte)
+	packed.WriteByte(common.SeparatorByte)
 	packed.Write(k.seed)
 	packed.Write(pubKeyBytes)
 	packed.Write(privKeyBytes)
@@ -198,7 +201,7 @@ func (k *KyberKey) Unpack(data []byte) error {
 	}
 
 	var err error
-	parts := bytes.SplitN(data, []byte{separatorByte}, dataParts)
+	parts := bytes.SplitN(data, []byte{common.SeparatorByte}, dataParts)
 	if len(parts) != dataParts {
 		return fmt.Errorf("invalid packed key")
 	}

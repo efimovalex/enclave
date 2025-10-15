@@ -1,7 +1,9 @@
-package keys_test
+package kyber_test
 
 import (
+	"context"
 	"enclave-task2/pkg/keys"
+	"enclave-task2/pkg/keys/kyber"
 	"testing"
 	"time"
 
@@ -9,7 +11,8 @@ import (
 )
 
 func TestErrors(t *testing.T) {
-	_, err := keys.NewKyberKey("invalid-size-key", "invalid-size", keys.DefaultKeyTTL)
+	ctx := context.Background()
+	_, err := kyber.NewKyberKey(ctx, "invalid-size-key", "invalid-size", keys.DefaultKeyTTL)
 	assert.Error(t, err)
 
 	var invalidData = []byte("invalid-packed-key")
@@ -22,7 +25,8 @@ func TestErrors(t *testing.T) {
 }
 
 func TestEncryptKey(t *testing.T) {
-	key, err := keys.NewKyberKey("encrypt-key", "1024", keys.DefaultKeyTTL)
+	ctx := context.Background()
+	key, err := kyber.NewKyberKey(ctx, "encrypt-key", "1024", keys.DefaultKeyTTL)
 	assert.NoError(t, err)
 	assert.NotNil(t, key)
 
@@ -35,6 +39,7 @@ func TestEncryptKey(t *testing.T) {
 	assert.Equal(t, plaintext, decrypted)
 }
 func TestKeys(t *testing.T) {
+	ctx := context.Background()
 	testCases := []struct {
 		name string
 		size string
@@ -46,7 +51,7 @@ func TestKeys(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			key, err := keys.NewKyberKey(tc.name, tc.size, keys.DefaultKeyTTL+time.Minute*10)
+			key, err := kyber.NewKyberKey(ctx, tc.name, tc.size, keys.DefaultKeyTTL+time.Minute*10)
 			assert.Equal(t, keys.DefaultKeyTTL+time.Minute*10, key.GetTTL())
 			key.SetTTL(keys.DefaultKeyTTL)
 			assert.Equal(t, keys.DefaultKeyTTL, key.GetTTL())
@@ -84,7 +89,7 @@ func TestKeys(t *testing.T) {
 			decrypted = key.Decrypt(ciphertext)
 			assert.Equal(t, plaintext, decrypted)
 
-			var unpackedKey keys.KyberKey
+			var unpackedKey kyber.KyberKey
 			err = unpackedKey.Unpack(packed)
 			assert.NoError(t, err)
 			assert.NotNil(t, unpackedKey)

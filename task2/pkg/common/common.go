@@ -5,7 +5,10 @@ import (
 	"log/slog"
 )
 
-const LoggerContextKey = "logger"
+const (
+	LoggerContextKey = "logger"
+	SeparatorByte    = byte(0xFF)
+)
 
 func GetLoggerFromContext(ctx context.Context) *slog.Logger {
 	if ctx == nil {

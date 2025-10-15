@@ -1,15 +1,16 @@
 package keys
 
 import (
+	"context"
 	"testing"
 
 	"github.com/tj/assert"
 )
 
 func TestFactory(t *testing.T) {
-
+	ctx := context.Background()
 	// Test kyber key creation
-	key, err := New("kyber", "1024", "test-kyber-key", DefaultKeyTTL)
+	key, err := New(ctx, "kyber", "1024", "test-kyber-key", DefaultKeyTTL)
 	assert.NoError(t, err)
 	assert.NotNil(t, key)
 	assert.Equal(t, "kyber", key.GetType())
@@ -17,12 +18,12 @@ func TestFactory(t *testing.T) {
 	assert.Equal(t, "test-kyber-key", key.GetName())
 
 	// Test unknown key type
-	key, err = New("unknown", "1024", "test-unknown-key", DefaultKeyTTL)
+	key, err = New(ctx, "unknown", "1024", "test-unknown-key", DefaultKeyTTL)
 	assert.Error(t, err)
 	assert.Nil(t, key)
 
 	// Test unpacking a valid kyber key
-	kyberKey, err := New("kyber", "1024", "unpack-kyber-key", DefaultKeyTTL)
+	kyberKey, err := New(ctx, "kyber", "1024", "unpack-kyber-key", DefaultKeyTTL)
 	assert.NoError(t, err)
 	packed := kyberKey.Pack()
 
