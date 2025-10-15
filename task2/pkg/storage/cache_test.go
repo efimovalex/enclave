@@ -18,7 +18,7 @@ func TestCache(t *testing.T) {
 		cache = NewInMemoryCache()
 	}
 
-	key, err := keys.New("test-key", 10*time.Minute)
+	key, err := keys.New("kyber", "1024", "test-key", 10*time.Minute)
 	assert.NoError(t, err)
 
 	// Test Put
@@ -26,20 +26,20 @@ func TestCache(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Test Get
-	actualKey, err := cache.Get(ctx, key.Name)
+	actualKey, err := cache.Get(ctx, key.GetName())
 	assert.NoError(t, err)
 
 	assert.NoError(t, err)
 
-	assert.Equal(t, key.Name, actualKey.Name)
-	assert.Equal(t, key.TTL, actualKey.TTL)
-	assert.Equal(t, key.CreatedAt.Unix(), actualKey.CreatedAt.Unix())
+	assert.Equal(t, key.GetName(), actualKey.GetName())
+	assert.Equal(t, key.GetTTL(), actualKey.GetTTL())
+	assert.Equal(t, key.GetCreatedAt().Unix(), actualKey.GetCreatedAt().Unix())
 
 	// Test Delete
-	err = cache.Delete(ctx, key.Name)
+	err = cache.Delete(ctx, key.GetName())
 	assert.NoError(t, err)
 
-	_, err = cache.Get(ctx, key.Name)
+	_, err = cache.Get(ctx, key.GetName())
 	assert.Error(t, err)
 	assert.Equal(t, NotFoundError, err)
 
@@ -49,7 +49,7 @@ func TestCache(t *testing.T) {
 	assert.Equal(t, NotFoundError, err)
 
 	// expiry
-	key, err = keys.New("expiring-key", 20*time.Millisecond)
+	key, err = keys.New("kyber", "1024", "exp-key", 20*time.Millisecond)
 	assert.NoError(t, err)
 
 	err = cache.Put(ctx, key)
@@ -57,12 +57,12 @@ func TestCache(t *testing.T) {
 
 	time.Sleep(60 * time.Millisecond)
 
-	_, err = cache.Get(ctx, key.Name)
+	_, err = cache.Get(ctx, key.GetName())
 	assert.Error(t, err)
 	assert.Equal(t, NotFoundError, err)
 
 	// expiry
-	key, err = keys.New("expiring-key2", 120*time.Millisecond)
+	key, err = keys.New("kyber", "1024", "exp-key2", 120*time.Millisecond)
 	assert.NoError(t, err)
 
 	err = cache.Put(ctx, key)
@@ -70,7 +70,7 @@ func TestCache(t *testing.T) {
 
 	time.Sleep(60 * time.Millisecond)
 
-	_, err = cache.Get(ctx, key.Name)
+	_, err = cache.Get(ctx, key.GetName())
 	assert.Error(t, err)
 	assert.Equal(t, NotFoundError, err)
 

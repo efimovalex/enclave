@@ -16,8 +16,8 @@ import (
 )
 
 type Storage interface {
-	Put(ctx context.Context, key *keys.Key) error
-	Get(ctx context.Context, key string) (*keys.Key, error)
+	Put(ctx context.Context, key keys.Key) error
+	Get(ctx context.Context, key string) (keys.Key, error)
 	Delete(ctx context.Context, key string) error
 }
 

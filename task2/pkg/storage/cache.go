@@ -39,7 +39,7 @@ func NewInMemoryCache() *InMemoryCache {
 			if !ok {
 				return errors.New("key not found")
 			}
-			dest.SetBytes(v.Pack(), time.Now().Add(v.TTL))
+			dest.SetBytes(v.Pack(), time.Now().Add(v.GetTTL()))
 			return nil
 		},
 	))
@@ -55,7 +55,7 @@ func (mc *InMemoryCache) CheckTTL() {
 		for range ticker.C {
 			now := time.Now()
 			for k, v := range mc.keys {
-				if v.TTL > 0 && now.Sub(v.CreatedAt) > v.TTL {
+				if v.GetTTL() > 0 && now.Sub(v.GetCreatedAt()) > v.GetTTL() {
 					mc.gc.Remove(context.Background(), k)
 				}
 			}
@@ -63,12 +63,12 @@ func (mc *InMemoryCache) CheckTTL() {
 	}()
 }
 
-func (mc *InMemoryCache) Put(ctx context.Context, key *keys.Key) error {
-	mc.gc.Set(ctx, key.Name, key.Pack(), key.CreatedAt.Add(key.TTL), true)
+func (mc *InMemoryCache) Put(ctx context.Context, key keys.Key) error {
+	mc.gc.Set(ctx, key.GetName(), key.Pack(), key.GetCreatedAt().Add(key.GetTTL()), true)
 	return nil
 }
 
-func (mc *InMemoryCache) Get(ctx context.Context, keyName string) (*keys.Key, error) {
+func (mc *InMemoryCache) Get(ctx context.Context, keyName string) (keys.Key, error) {
 	var data []byte
 	err := mc.gc.Get(ctx, keyName, groupcache.AllocatingByteSliceSink(&data))
 	if err != nil {
@@ -84,7 +84,7 @@ func (mc *InMemoryCache) Get(ctx context.Context, keyName string) (*keys.Key, er
 	}
 
 	// check if key is expired
-	if key.TTL > 0 && time.Since(key.CreatedAt) > key.TTL {
+	if key.GetTTL() > 0 && time.Since(key.GetCreatedAt()) > key.GetTTL() {
 		mc.gc.Remove(ctx, keyName)
 		return nil, NotFoundError
 	}

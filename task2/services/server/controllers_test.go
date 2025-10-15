@@ -61,9 +61,9 @@ func TestCreateKyberKey(t *testing.T) {
 		req = req.WithContext(ctx)
 		req.SetPathValue("name", "test-key")
 		rw := httptest.NewRecorder()
-		q := req.URL.Query()
-		q.Add("ttl", "55m")
-		req.URL.RawQuery = q.Encode()
+
+		req.Header.Set("X-Key-TTL", "55m")
+
 		server.CreateKyberKey(rw, req)
 
 		t.Log(rw.Body.String())
@@ -72,7 +72,7 @@ func TestCreateKyberKey(t *testing.T) {
 		// Verify key is stored
 		k, err := cache.Get(ctx, "test-key")
 		assert.NoError(t, err)
-		assert.Equal(t, 55*time.Minute, k.TTL)
+		assert.Equal(t, 55*time.Minute, k.GetTTL())
 	})
 
 	t.Run("invalid ttl", func(t *testing.T) {
@@ -80,9 +80,8 @@ func TestCreateKyberKey(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/transit/keys/test-key", nil)
 		req = req.WithContext(ctx)
 		req.SetPathValue("name", "test-key2")
-		q := req.URL.Query()
-		q.Add("ttl", "5trest123")
-		req.URL.RawQuery = q.Encode()
+
+		req.Header.Set("X-Key-TTL", "invalid-ttl")
 		rw := httptest.NewRecorder()
 
 		server.CreateKyberKey(rw, req)
@@ -98,9 +97,7 @@ func TestCreateKyberKey(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/transit/keys/test-key", nil)
 		req = req.WithContext(ctx)
 		req.SetPathValue("name", "test-key2")
-		q := req.URL.Query()
-		q.Add("ttl", "5m")
-		req.URL.RawQuery = q.Encode()
+		req.Header.Set("X-Key-TTL", "5m")
 		rw := httptest.NewRecorder()
 
 		server.CreateKyberKey(rw, req)
@@ -110,7 +107,7 @@ func TestCreateKyberKey(t *testing.T) {
 		// Verify key is stored
 		k, err := cache.Get(ctx, "test-key2")
 		assert.NoError(t, err)
-		assert.Equal(t, 5*time.Minute, k.TTL)
+		assert.Equal(t, 5*time.Minute, k.GetTTL())
 	})
 
 }
@@ -123,7 +120,7 @@ func TestRevokeKyberKey(t *testing.T) {
 	server := New(cache)
 	server.logger = slog.New(slog.NewTextHandler(t.Output(), &slog.HandlerOptions{Level: slog.LevelDebug}))
 
-	key, err := keys.New("test-key", keys.DefaultKeyTTL)
+	key, err := keys.New(keys.KyberKeyType, keys.Size1024, "test-key", keys.DefaultKeyTTL)
 	assert.NoError(t, err)
 	// Create key
 	err = cache.Put(ctx, key)
@@ -181,7 +178,7 @@ func TestEncrypt(t *testing.T) {
 	server := New(cache)
 	server.logger = slog.New(slog.NewTextHandler(t.Output(), &slog.HandlerOptions{Level: slog.LevelDebug}))
 
-	key, err := keys.New("test-key", keys.DefaultKeyTTL)
+	key, err := keys.New(keys.KyberKeyType, keys.Size1024, "test-key", keys.DefaultKeyTTL)
 	assert.NoError(t, err)
 	// Create key
 	err = cache.Put(ctx, key)
@@ -249,7 +246,7 @@ func TestDecrypt(t *testing.T) {
 	server := New(cache)
 	server.logger = slog.New(slog.NewTextHandler(t.Output(), &slog.HandlerOptions{Level: slog.LevelDebug}))
 
-	key, err := keys.New("test-key", keys.DefaultKeyTTL)
+	key, err := keys.New(keys.KyberKeyType, keys.Size1024, "test-key", keys.DefaultKeyTTL)
 	assert.NoError(t, err)
 	// Create key
 	err = cache.Put(ctx, key)
@@ -318,7 +315,7 @@ func TestEncryptDecryptLargeData(t *testing.T) {
 	server := New(cache)
 	server.logger = slog.New(slog.NewTextHandler(t.Output(), &slog.HandlerOptions{Level: slog.LevelDebug}))
 
-	key, err := keys.New("test-key", keys.DefaultKeyTTL)
+	key, err := keys.New(keys.KyberKeyType, keys.Size1024, "test-key", keys.DefaultKeyTTL)
 	assert.NoError(t, err)
 	// Create key
 	err = cache.Put(ctx, key)

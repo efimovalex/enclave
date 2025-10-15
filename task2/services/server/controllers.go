@@ -17,7 +17,7 @@ func (s *Server) CreateKyberKey(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	ttl := keys.DefaultKeyTTL
-	ttlParam := req.URL.Query().Get("ttl")
+	ttlParam := req.Header.Get("X-Key-TTL")
 	if ttlParam != "" {
 		var err error
 		ttl, err = time.ParseDuration(ttlParam)
@@ -38,14 +38,24 @@ func (s *Server) CreateKyberKey(rw http.ResponseWriter, req *http.Request) {
 		}
 	} else {
 		// key already exists -> extend TTL
-		key.TTL = ttl
+		key.SetTTL(ttl)
 		s.storage.Put(ctx, key)
 
 		rw.WriteHeader(http.StatusNoContent)
 		return
 	}
 
-	key, err = keys.New(keyName, ttl)
+	keyType := req.Header.Get("X-Key-Type")
+	if keyType == "" {
+		keyType = "kyber"
+	}
+
+	keySize := req.Header.Get("X-Key-Size")
+	if keySize == "" {
+		keySize = "1024"
+	}
+
+	key, err = keys.New(keyType, keySize, keyName, ttl)
 	if err != nil {
 		s.logger.Error("failed to create key", "error", err)
 		http.Error(rw, "failed to create key", http.StatusInternalServerError)

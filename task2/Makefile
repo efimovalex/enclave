@@ -16,7 +16,7 @@ REST_PRETTY?=true
 help: ## This help.
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n\nTargets:\n"} /^[a-zA-Z_-]+:.*?##/ { printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
 
-test-ci: # lint ## Runs the tests with coverage checks + lint
+ci: # lint ## Runs the tests with coverage checks + lint
 	@if [ -d ${COVERAGE_DIR} ]; then rm -rf ${COVERAGE_DIR}/*; else mkdir ${COVERAGE_DIR}; fi;
 	@for package in ${PKG_LIST} ; do \
 		pkgcov=$$(go test -covermode=atomic -test.count=1  -race -coverprofile="$(COVERAGE_DIR)/$$(basename $${package}).cov" "$${package}"); \
